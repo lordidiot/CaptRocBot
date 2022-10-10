@@ -10,22 +10,43 @@ from telegram.ext import (
     CallbackQueryHandler,
     CallbackContext,
 )
-from util import get_available_timings, make_booking, next_week, weekday
+from util import delete_booking, from_iso, get_available_timings, get_bookings, make_booking, next_week, time_to_range, to_iso, weekday
 
 # Enable logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
+def lounge_bookings() -> str:
+    bookings = get_bookings()
+    if not bookings:
+        return ""
+
+    s = "== [Lounge Bookings] ==\n"
+    for date in sorted(bookings.keys()):
+        s += f"{date[0]:02d}/{date[1]:02d} ({weekday(bookings[date][0][0])})\n"
+        for booking in sorted(bookings[date]):
+            time, floor, username = booking
+            s += f"L{floor}: {time_to_range(time)} (@{username})\n"
+        s += "\n"
+    s = s[:-1]
+    s+= "=====================\n"
+
+    return s
+
+
 def start(update: Update, context: CallbackContext) -> str:
     """Starts convo"""
-    text = "What would you like to do?"
+    text = ""
+    text+= lounge_bookings()
+    text+= "\nWhat would you like to do?"
     buttons = [
         [
             InlineKeyboardButton(text="Add Lounge Booking", callback_data="AddLounge"),
             InlineKeyboardButton(text="Delete Lounge Booking", callback_data="DelLounge")
         ],
         [
+            InlineKeyboardButton(text="Refresh", callback_data="Refresh"),
             InlineKeyboardButton(text="Cancel", callback_data="Cancel")
         ]
     ]
@@ -65,7 +86,7 @@ def lounge_date_menu(update: Update, context: CallbackContext) -> str:
     f = lambda x : [
         InlineKeyboardButton(
             text=f"{x.day:02d}/{x.month:02d} ({weekday(x)})",
-            callback_data=f"DATE_{x.day:02d}{x.month:02d}"
+            callback_data=f"DATE_{x.isoformat()}"
         )
     ]
     buttons = [f(day) for day in days]
@@ -90,11 +111,12 @@ def lounge_floor_menu(update: Update, context: CallbackContext) -> str:
     """Floor menu for adding lounge booking"""
     if update.callback_query.data.startswith("DATE_"):
         s = update.callback_query.data[5:]
-        context.user_data["DATE"] = (int(s[:2]), int(s[2:]))
+        context.user_data["DATE"] = from_iso(s)
+    
 
     date = context.user_data["DATE"]
     text = (
-        f"Date: {date[0]:02d}/{date[1]:02d}\n"
+        f"Date: {date.day}/{date.month}\n"
         f"Select floor"
     )
 
@@ -127,25 +149,25 @@ def lounge_time_menu(update: Update, context: CallbackContext) -> str:
     if update.callback_query.data.startswith("FLOOR_"):
         context.user_data["FLOOR"] = int(update.callback_query.data[6:])
     elif update.callback_query.data.startswith("TIME_"):
-        context.user_data["TIMES"].add(update.callback_query.data[5:])
+        context.user_data["TIMES"].add(from_iso(update.callback_query.data[5:]))
 
     date = context.user_data["DATE"]
     floor = context.user_data["FLOOR"]
     text = (
-        f"Date: {date[0]:02d}/{date[1]:02d}, Floor: {floor}\n"
+        f"Date: {date.day}/{date.month}, Floor: {floor}\n"
         f"Select timeslots(s)"
     )
     if context.user_data["TIMES"]:
         text += "\n\nCurrently selected:"
         for time in sorted(context.user_data["TIMES"]):
             text += ''
-            text += f"\n{time}"
+            text += f"\n{time_to_range(time)}"
 
     _hours = sorted(list(
         set(get_available_timings(date, floor))
             .difference(context.user_data["TIMES"])
     ))
-    f = lambda x : InlineKeyboardButton(text=x, callback_data="TIME_"+x)
+    f = lambda x : InlineKeyboardButton(text=time_to_range(x), callback_data="TIME_"+to_iso(x))
     buttons = [[f(j) for j in _hours[i:i+2]] for i in range(0, len(_hours), 2)]
     if context.user_data["TIMES"]:
         buttons.append([
@@ -173,7 +195,7 @@ def lounge_confirmation(update: Update, context: CallbackContext) -> str:
     times = sorted(context.user_data["TIMES"])
 
     from_user = update.callback_query.from_user
-    if not make_booking(date, floor, times, from_user["username"], from_user["id"]):
+    if not make_booking(times, floor, from_user["username"], from_user["id"]):
         text = "Something went wrong while trying to book :/\n"
         text+= "Contact @lord_idiot if this keeps happening."
         buttons = [[InlineKeyboardButton(text="Restart", callback_data="Restart")]]
@@ -183,12 +205,12 @@ def lounge_confirmation(update: Update, context: CallbackContext) -> str:
 
     text = (
         f"Booking confirmed with the following details:\n"
-        f"Date: {date[0]:02d}/{date[1]:02d}, Floor: {floor}\n"
+        f"Date: {date.day}/{date.month}, Floor: {floor}\n"
         f"Timeslot(s)"
     )
     for time in times:
         text += ''
-        text += f"\n    {time}"
+        text += f"\n* {time_to_range(time)}"
 
     buttons = [
         [
@@ -207,12 +229,26 @@ def lounge_confirmation(update: Update, context: CallbackContext) -> str:
 
 def lounge_booking_list_menu(update: Update, context: CallbackContext) -> str:
     """Menu for adding lounge booking"""
-    update.callback_query.answer()
+    from_user = update.callback_query.from_user
+    if update.callback_query.data.startswith("DEL_"):
+        floor = int(update.callback_query.data[4:5])
+        time = from_iso(update.callback_query.data[5:])
+        delete_booking(time, floor, from_user["username"])
 
-    text = "Which day would you like to book?"
-    days = next_week()
-    f = lambda x : [InlineKeyboardButton(text=f"{x.day:02d}/{x.month:02d} ({weekday(x)})", callback_data=f"{x.day:02d}{x.month:02d}")]
-    buttons = [f(day) for day in days]
+    bookings = get_bookings(from_user["username"])
+    buttons = []
+    for date in sorted(bookings.keys()):
+        for booking in sorted(bookings[date]):
+            time, floor, username = booking
+            button = InlineKeyboardButton(
+                text=f"L{floor}: {time.day:02d}/{time.month} ({weekday(time)}) {time_to_range(time)}",
+                callback_data=f"DEL_{floor}{to_iso(time)}"
+            )
+            buttons.append([button])
+
+    text = "Choose a booking to delete.\n"
+    text+=f"You have {len(buttons)} bookings in the next week."
+
     buttons.append([
         InlineKeyboardButton(text="Back", callback_data="Back"),
         InlineKeyboardButton(text="Cancel", callback_data="Cancel")
@@ -223,13 +259,7 @@ def lounge_booking_list_menu(update: Update, context: CallbackContext) -> str:
     update.callback_query.answer()
     update.callback_query.edit_message_text(text=text, reply_markup=keyboard)
 
-    return "LoungeDateMenu"
-
-def del_lounge_booking(update: Update, context: CallbackContext) -> str:
-    """Menu for deleting lounge booking"""
-    update.callback_query.answer()
-
-    return "StartMenu"
+    return "LoungeBookingListMenu"
 
 
 def main() -> None:
@@ -246,6 +276,7 @@ def main() -> None:
             "StartMenu": [
                 CallbackQueryHandler(lounge_date_menu, pattern="^AddLounge$"),
                 CallbackQueryHandler(lounge_booking_list_menu, pattern="^DelLounge$"),
+                CallbackQueryHandler(start, pattern="^Refresh$"),
                 CallbackQueryHandler(end, pattern="^Cancel$"),
             ],
             "LoungeDateMenu": [
@@ -267,6 +298,11 @@ def main() -> None:
             "LoungeConfirmation": [
                 CallbackQueryHandler(start, pattern="^Restart$"),
                 CallbackQueryHandler(end, pattern="^Done$"),
+            ],
+            "LoungeBookingListMenu": [
+                CallbackQueryHandler(start, pattern="^Back$"),
+                CallbackQueryHandler(end, pattern="^Cancel$"),
+                CallbackQueryHandler(lounge_booking_list_menu, pattern="^DEL_.*$"),
             ]
         },
         fallbacks=[CommandHandler("stop", stop), CommandHandler("start", start)]
