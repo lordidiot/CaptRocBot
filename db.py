@@ -101,6 +101,5 @@ def del_booking(time: datetime, floor: int, tele: str) -> None:
               TELE = ?
     """
 
-    print(time, floor, tele)
     cur.execute(sql, (time, floor, tele))
     close_connection(conn)
