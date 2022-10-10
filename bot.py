@@ -155,7 +155,7 @@ def lounge_time_menu(update: Update, context: CallbackContext) -> str:
     floor = context.user_data["FLOOR"]
     text = (
         f"Date: {date.day}/{date.month}, Floor: {floor}\n"
-        f"Select timeslots(s)"
+        f"Select timeslot(s)"
     )
     if context.user_data["TIMES"]:
         text += "\n\nCurrently selected:"
@@ -247,7 +247,7 @@ def lounge_booking_list_menu(update: Update, context: CallbackContext) -> str:
             buttons.append([button])
 
     text = "Choose a booking to delete.\n"
-    text+=f"You have {len(buttons)} bookings in the next week."
+    text+=f"You have {len(buttons)} booking(s) in the next week."
 
     buttons.append([
         InlineKeyboardButton(text="Back", callback_data="Back"),
