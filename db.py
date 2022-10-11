@@ -73,10 +73,9 @@ def get_bookings_in_week(date: datetime, tele: str) -> List[Tuple[str, int, str]
             FROM LoungeBookings
             WHERE TIME >= ? AND
                   TIME < ? AND
-                  TELE = ? ORDER BY
-                  FLOOR ASC, TIME DESC
+                  TELE = ? 
         """
-        cur.execute(sql, (date, date+timedelta(days=7), tele))
+        cur.execute(sql, (date-timedelta(hours=1), date+timedelta(days=7), tele))
         rows = cur.fetchall()
     else:
         sql = """
@@ -84,8 +83,6 @@ def get_bookings_in_week(date: datetime, tele: str) -> List[Tuple[str, int, str]
             FROM LoungeBookings
             WHERE TIME >= ? AND
                 TIME < ?
-                ORDER BY
-                FLOOR ASC, TIME DESC
         """
         cur.execute(sql, (date, date+timedelta(days=7)))
         rows = cur.fetchall()
