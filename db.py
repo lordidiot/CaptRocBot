@@ -15,9 +15,7 @@ def close_connection(conn):
     conn.close()
 
 
-def insert_booking(
-    times: Iterable[datetime], floor: int, tele: str, chat_id: int
-):
+def insert_booking(times: Iterable[datetime], floor: int, tele: str, chat_id: int):
     conn = create_connection()
     cur = conn.cursor()
 
@@ -58,11 +56,12 @@ def get_bookings_in_day(date: datetime, floor: int) -> List[str]:
               FLOOR = ?
     """
 
-    cur.execute(sql, (date, date+timedelta(days=1), floor))
+    cur.execute(sql, (date, date + timedelta(days=1), floor))
     rows = cur.fetchall()
 
     close_connection(conn)
     return [row[0] for row in rows]
+
 
 def get_bookings_in_week(date: datetime, tele: str) -> List[Tuple[str, int, str]]:
     conn = create_connection()
@@ -75,7 +74,7 @@ def get_bookings_in_week(date: datetime, tele: str) -> List[Tuple[str, int, str]
                   TIME < ? AND
                   TELE = ?
         """
-        cur.execute(sql, (date-timedelta(hours=1), date+timedelta(days=7), tele))
+        cur.execute(sql, (date - timedelta(hours=1), date + timedelta(days=7), tele))
         rows = cur.fetchall()
     else:
         sql = """
@@ -84,12 +83,12 @@ def get_bookings_in_week(date: datetime, tele: str) -> List[Tuple[str, int, str]
             WHERE TIME >= ? AND
                 TIME < ?
         """
-        cur.execute(sql, (date, date+timedelta(days=7)))
+        cur.execute(sql, (date, date + timedelta(days=7)))
         rows = cur.fetchall()
-
 
     close_connection(conn)
     return rows
+
 
 def del_booking(time: datetime, floor: int, tele: str) -> None:
     conn = create_connection()
