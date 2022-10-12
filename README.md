@@ -55,6 +55,14 @@ Code is quite bad atm, sorry.
 
 Here are some useful resources to get you started if you would like to try contributing:
 
+### Linting
+
+Before making a PR, make sure to lint your code with [black](https://github.com/psf/black).
+
+```bash
+black .
+```
+
 ### Working with Github
 - [Creating a pull request from a fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork)
 
