@@ -63,7 +63,7 @@ def make_booking(times: Iterable[datetime], floor: int, tele: str, chat_id: int)
     return insert_booking(dates, floor, tele, chat_id)
 
 def get_bookings(tele: str="") -> Dict[Tuple[int, int], List[Tuple[datetime, int, str]]]:
-    date = to_utc(now()) 
+    date = to_utc(now())
     bookings = get_bookings_in_week(date, tele)
     l = defaultdict(list)
     for booking in bookings:

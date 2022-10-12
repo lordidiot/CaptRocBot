@@ -32,11 +32,8 @@ def lounge_bookings() -> str:
             hours = 1
             cursor = 1
             time, floor, username = day_bookings[index]
-            while(index+cursor < len(day_bookings) and 
-                    time.hour + hours >= day_bookings[index+cursor][0].hour):
-                if(username == day_bookings[index+cursor][2] and 
-                    floor == day_bookings[index+cursor][1] and
-                    time.hour + hours == day_bookings[index+cursor][0].hour):
+            while index+cursor < len(day_bookings) and time.hour + hours >= day_bookings[index+cursor][0].hour:
+                if username == day_bookings[index+cursor][2] and floor == day_bookings[index+cursor][1] and time.hour + hours == day_bookings[index+cursor][0].hour:
                         hours += 1
                         day_bookings.pop(index+cursor)  
                 else:
