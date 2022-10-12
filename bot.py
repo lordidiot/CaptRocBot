@@ -25,9 +25,20 @@ def lounge_bookings() -> str:
     s = "== [Lounge Bookings] ==\n"
     for date in sorted(bookings.keys()):
         s += f"{date[0]:02d}/{date[1]:02d} ({weekday(bookings[date][0][0])})\n"
-        for booking in sorted(bookings[date]):
-            time, floor, username = booking
-            s += f"L{floor}: {time_to_range(time)} (@{username})\n"
+        day_bookings = sorted(bookings[date])
+        for index in range(len(day_bookings)):
+            if index >= len(day_bookings):
+                break
+            hours = 1
+            cursor = 1
+            time, floor, username = day_bookings[index]
+            while index+cursor < len(day_bookings) and time.hour + hours >= day_bookings[index+cursor][0].hour:
+                if username == day_bookings[index+cursor][2] and floor == day_bookings[index+cursor][1] and time.hour + hours == day_bookings[index+cursor][0].hour:
+                        hours += 1
+                        day_bookings.pop(index+cursor)  
+                else:
+                    cursor += 1
+            s += f"L{floor}: {time_to_range(time, hours)} (@{username})\n"
         s += "\n"
     s = s[:-1]
     s+= "=====================\n"
@@ -161,13 +172,13 @@ def lounge_time_menu(update: Update, context: CallbackContext) -> str:
         text += "\n\nCurrently selected:"
         for time in sorted(context.user_data["TIMES"]):
             text += ''
-            text += f"\n{time_to_range(time)}"
+            text += f"\n{time_to_range(time, 1)}"
 
     _hours = sorted(list(
         set(get_available_timings(date, floor))
             .difference(context.user_data["TIMES"])
     ))
-    f = lambda x : InlineKeyboardButton(text=time_to_range(x), callback_data="TIME_"+to_iso(x))
+    f = lambda x : InlineKeyboardButton(text=time_to_range(x, 1), callback_data="TIME_"+to_iso(x))
     buttons = [[f(j) for j in _hours[i:i+2]] for i in range(0, len(_hours), 2)]
     if context.user_data["TIMES"]:
         buttons.append([
@@ -210,7 +221,7 @@ def lounge_confirmation(update: Update, context: CallbackContext) -> str:
     )
     for time in times:
         text += ''
-        text += f"\n* {time_to_range(time)}"
+        text += f"\n* {time_to_range(time, 1)}"
 
     buttons = [
         [
@@ -241,7 +252,7 @@ def lounge_booking_list_menu(update: Update, context: CallbackContext) -> str:
         for booking in sorted(bookings[date]):
             time, floor, username = booking
             button = InlineKeyboardButton(
-                text=f"L{floor}: {time.day:02d}/{time.month} ({weekday(time)}) {time_to_range(time)}",
+                text=f"L{floor}: {time.day:02d}/{time.month} ({weekday(time)}) {time_to_range(time, 1)}",
                 callback_data=f"DEL_{floor}{to_iso(time)}"
             )
             buttons.append([button])

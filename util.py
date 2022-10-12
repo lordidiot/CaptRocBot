@@ -72,8 +72,8 @@ def get_bookings(tele: str="") -> Dict[Tuple[int, int], List[Tuple[datetime, int
         l[(time.day, time.month)].append((time, floor, username))
     return l
 
-def time_to_range(time: datetime) -> str:
-    return f"{time.hour*100:04d}-{(time.hour+1)*100:04d}"
+def time_to_range(time: datetime, hours: int) -> str:
+    return f"{time.hour*100:04d}-{(time.hour+hours)*100:04d}"
 
 def delete_booking(time: datetime, floor: int, tele: str) -> None:
     del_booking(to_utc(time), floor, tele)
